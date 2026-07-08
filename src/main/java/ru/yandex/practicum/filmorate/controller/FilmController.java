@@ -1,11 +1,13 @@
 package ru.yandex.practicum.filmorate.controller;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.Film;
 
+import java.net.HttpURLConnection;
 import java.time.LocalDate;
 import java.util.Collection;
 import java.util.HashMap;
@@ -18,6 +20,7 @@ public class FilmController {
 
     private final Map<Integer, Film> films = new HashMap<>();
     private static final LocalDate MIN_RELEASE_DATE = LocalDate.of(1895, 12, 28);
+    public static final int HTTP_OK = HttpURLConnection.HTTP_OK;
 
     @GetMapping
     public Collection<Film> findAll() {
@@ -39,7 +42,7 @@ public class FilmController {
         if (newFilm.getId() <= 0) {
             throw new ValidationException("Id должен быть указан");
         }
-        if (!films.containsKey(newFilm.getId())) {
+        if (!exists(newFilm.getId())) {
             throw new NotFoundException("Фильм с id = " + newFilm.getId() + " не найден");
         }
         validateFilm(newFilm);
@@ -51,11 +54,11 @@ public class FilmController {
     }
 
     private void validateFilm(Film film) {
-        if (film.getName() == null || film.getName().isBlank()) {
+        if (!StringUtils.hasText(film.getName())) {
             log.warn("Ошибка валидации: Название фильма не может быть пустым");
             throw new ValidationException("Название фильма не может быть пустым");
         }
-        if (film.getDescription() != null && film.getDescription().length() > 200) {
+        if (film.getDescription() != null && film.getDescription().length() > HTTP_OK) {
             log.warn("Ошибка валидации: Максимальная длина описания — 200 символов");
             throw new ValidationException("Максимальная длина описания — 200 символов");
         }
@@ -67,5 +70,9 @@ public class FilmController {
             log.warn("Ошибка валидации: Продолжительность фильма должна быть положительным числом");
             throw new ValidationException("Продолжительность фильма должна быть положительным числом");
         }
+    }
+
+    private boolean exists(int id) {
+        return films.containsKey(id);
     }
 }

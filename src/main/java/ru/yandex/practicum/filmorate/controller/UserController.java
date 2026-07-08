@@ -1,6 +1,7 @@
 package ru.yandex.practicum.filmorate.controller;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.exception.ValidationException;
@@ -23,7 +24,7 @@ public class UserController {
     public User createUser(@RequestBody User user) {
         validateUser(user);
 
-        if (user.getName() == null || user.getName().isBlank()) {
+        if (!StringUtils.hasText(user.getName())) {
             user.setName(user.getLogin());
         }
 
@@ -38,11 +39,11 @@ public class UserController {
     public User updateUser(@RequestBody User user) {
         validateUser(user);
 
-        if (user.getId() == null || !users.containsKey(user.getId())) {
+        if (!exists(user.getId())) {
             throw new NotFoundException("Пользователь с таким ID не найден");
         }
 
-        if (user.getName() == null || user.getName().isBlank()) {
+        if (!StringUtils.hasText(user.getName())) {
             user.setName(user.getLogin());
         }
 
@@ -59,12 +60,12 @@ public class UserController {
     }
 
     private void validateUser(User user) {
-        if (user.getEmail() == null || user.getEmail().isBlank() || !user.getEmail().contains("@")) {
+        if (!StringUtils.hasText(user.getEmail()) || !user.getEmail().contains("@")) {
             log.warn("Ошибка валидации: Электронная почта не может быть пустой и должна содержать символ @");
             throw new ValidationException("Электронная почта не может быть пустой и должна содержать символ @");
         }
 
-        if (user.getLogin() == null || user.getLogin().isBlank() || user.getLogin().contains(" ")) {
+        if (!StringUtils.hasText(user.getLogin()) || user.getLogin().contains(" ")) {
             log.warn("Ошибка валидации: Логин не может быть пустым и содержать пробелы");
             throw new ValidationException("Логин не может быть пустым и содержать пробелы");
         }
@@ -73,5 +74,9 @@ public class UserController {
             log.warn("Ошибка валидации: Дата рождения не может быть в будущем");
             throw new ValidationException("Дата рождения не может быть в будущем");
         }
+    }
+
+    private boolean exists(Integer id) {
+        return id != null && users.containsKey(id);
     }
 }
