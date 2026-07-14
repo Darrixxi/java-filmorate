@@ -7,6 +7,12 @@ import ru.yandex.practicum.filmorate.controller.UserController;
 import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.Film;
 import ru.yandex.practicum.filmorate.model.User;
+import ru.yandex.practicum.filmorate.service.FilmService;
+import ru.yandex.practicum.filmorate.service.UserService;
+import ru.yandex.practicum.filmorate.storage.film.FilmStorage;
+import ru.yandex.practicum.filmorate.storage.film.InMemoryFilmStorage;
+import ru.yandex.practicum.filmorate.storage.user.InMemoryUserStorage;
+import ru.yandex.practicum.filmorate.storage.user.UserStorage;
 
 import java.time.LocalDate;
 
@@ -16,11 +22,19 @@ class FilmorateApplicationTests {
 
     private UserController userController;
     private FilmController filmController;
+    private UserService userService;
+    private FilmService filmService;
 
     @BeforeEach
     void setUp() {
-        userController = new UserController();
-        filmController = new FilmController();
+        UserStorage userStorage = new InMemoryUserStorage();
+        FilmStorage filmStorage = new InMemoryFilmStorage();
+
+        userService = new UserService(userStorage);
+        filmService = new FilmService(filmStorage, userStorage);
+
+        userController = new UserController(userService);
+        filmController = new FilmController(filmService);
     }
 
     private User validUser() {
@@ -35,7 +49,7 @@ class FilmorateApplicationTests {
     @Test
     void whenDataIsValid() {
         User user = validUser();
-        User created = userController.createUser(user);
+        User created = userController.create(user);
         assertNotNull(created.getId());
         assertEquals("test@mail.ru", created.getEmail());
     }
@@ -44,91 +58,91 @@ class FilmorateApplicationTests {
     void whenEmailIsNull() {
         User user = validUser();
         user.setEmail(null);
-        assertThrows(ValidationException.class, () -> userController.createUser(user));
+        assertThrows(ValidationException.class, () -> userController.create(user));
     }
 
     @Test
     void whenEmailIsEmpty() {
         User user = validUser();
         user.setEmail("");
-        assertThrows(ValidationException.class, () -> userController.createUser(user));
+        assertThrows(ValidationException.class, () -> userController.create(user));
     }
 
     @Test
     void whenEmailIsBlank() {
         User user = validUser();
         user.setEmail("   ");
-        assertThrows(ValidationException.class, () -> userController.createUser(user));
+        assertThrows(ValidationException.class, () -> userController.create(user));
     }
 
     @Test
     void whenEmailHasNoAtSymbol() {
         User user = validUser();
         user.setEmail("invalidemail.ru");
-        assertThrows(ValidationException.class, () -> userController.createUser(user));
+        assertThrows(ValidationException.class, () -> userController.create(user));
     }
 
     @Test
     void whenEmailHasAtSymbol() {
         User user = validUser();
         user.setEmail("a@b");
-        assertDoesNotThrow(() -> userController.createUser(user));
+        assertDoesNotThrow(() -> userController.create(user));
     }
 
     @Test
     void whenLoginIsNull() {
         User user = validUser();
         user.setLogin(null);
-        assertThrows(ValidationException.class, () -> userController.createUser(user));
+        assertThrows(ValidationException.class, () -> userController.create(user));
     }
 
     @Test
     void whenLoginIsEmpty() {
         User user = validUser();
         user.setLogin("");
-        assertThrows(ValidationException.class, () -> userController.createUser(user));
+        assertThrows(ValidationException.class, () -> userController.create(user));
     }
 
     @Test
     void whenLoginIsBlank() {
         User user = validUser();
         user.setLogin("   ");
-        assertThrows(ValidationException.class, () -> userController.createUser(user));
+        assertThrows(ValidationException.class, () -> userController.create(user));
     }
 
     @Test
     void whenLoginContainsSpace() {
         User user = validUser();
         user.setLogin("test user");
-        assertThrows(ValidationException.class, () -> userController.createUser(user));
+        assertThrows(ValidationException.class, () -> userController.create(user));
     }
 
     @Test
     void whenBirthdayIsInFuture() {
         User user = validUser();
         user.setBirthday(LocalDate.now().plusDays(1));
-        assertThrows(ValidationException.class, () -> userController.createUser(user));
+        assertThrows(ValidationException.class, () -> userController.create(user));
     }
 
     @Test
     void whenBirthdayIsToday() {
         User user = validUser();
         user.setBirthday(LocalDate.now());
-        assertDoesNotThrow(() -> userController.createUser(user));
+        assertDoesNotThrow(() -> userController.create(user));
     }
 
     @Test
     void whenBirthdayIsNull() {
         User user = validUser();
         user.setBirthday(null);
-        assertDoesNotThrow(() -> userController.createUser(user));
+        assertDoesNotThrow(() -> userController.create(user));
     }
 
     @Test
     void shouldSetNameToLogin_whenNameIsNull() {
         User user = validUser();
         user.setName(null);
-        User created = userController.createUser(user);
+        User created = userController.create(user);
         assertEquals("testuser", created.getName());
     }
 
@@ -136,14 +150,14 @@ class FilmorateApplicationTests {
     void shouldSetNameToLogin_whenNameIsBlank() {
         User user = validUser();
         user.setName("   ");
-        User created = userController.createUser(user);
+        User created = userController.create(user);
         assertEquals("testuser", created.getName());
     }
 
     @Test
     void whenUserIsCompletelyEmpty() {
         User user = new User();
-        assertThrows(ValidationException.class, () -> userController.createUser(user));
+        assertThrows(ValidationException.class, () -> userController.create(user));
     }
 
 
