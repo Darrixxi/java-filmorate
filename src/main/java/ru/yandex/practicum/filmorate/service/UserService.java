@@ -2,9 +2,13 @@ package ru.yandex.practicum.filmorate.service;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
+import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.User;
 import ru.yandex.practicum.filmorate.storage.user.UserStorage;
+
+import java.time.LocalDate;
 import java.util.Collection;
 import java.util.stream.Collectors;
 
@@ -14,10 +18,14 @@ public class UserService {
     private final UserStorage userStorage;
 
     public User create(User user) {
+        validateUser(user);
+        applyBusinessRules(user);
         return userStorage.create(user);
     }
 
     public User update(User user) {
+        validateUser(user);
+        applyBusinessRules(user);
         return userStorage.update(user);
     }
 
@@ -56,16 +64,34 @@ public class UserService {
         User user = findById(userId);
         return user.getFriends().stream()
                 .map(this::findById)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     public Collection<User> getCommonFriends(Integer userId, Integer otherId) {
-        User user = findById(userId);
-        User other = findById(otherId);
+        if (!userStorage.existsById(userId) || !userStorage.existsById(otherId)) {
+            throw new NotFoundException("Один из пользователей не найден");
+        }
+        return userStorage.findCommonFriends(userId, otherId);
+    }
 
-        return user.getFriends().stream()
-                .filter(other.getFriends()::contains)
-                .map(this::findById)
-                .collect(Collectors.toList());
+    private void validateUser(User user) {
+        if (user.getId() != null && user.getId() <= 0) {
+            throw new ValidationException("Id должен быть положительным числом");
+        }
+        if (!StringUtils.hasText(user.getEmail()) || !user.getEmail().contains("@")) {
+            throw new ValidationException("Электронная почта не может быть пустой и должна содержать символ @");
+        }
+        if (!StringUtils.hasText(user.getLogin()) || user.getLogin().contains(" ")) {
+            throw new ValidationException("Логин не может быть пустым и содержать пробелы");
+        }
+        if (user.getBirthday() != null && user.getBirthday().isAfter(LocalDate.now())) {
+            throw new ValidationException("Дата рождения не может быть в будущем");
+        }
+    }
+
+    private void applyBusinessRules(User user) {
+        if (!StringUtils.hasText(user.getName())) {
+            user.setName(user.getLogin());
+        }
     }
 }

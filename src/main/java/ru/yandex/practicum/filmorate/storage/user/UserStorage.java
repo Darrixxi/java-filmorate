@@ -14,4 +14,6 @@ public interface UserStorage {
     Optional<User> findById(Integer id);
 
     boolean existsById(Integer id);
+
+    Collection<User> findCommonFriends(Integer userId, Integer otherId);
 }

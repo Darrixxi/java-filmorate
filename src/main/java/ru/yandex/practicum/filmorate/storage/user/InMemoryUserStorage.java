@@ -4,6 +4,7 @@ import org.springframework.stereotype.Component;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.model.User;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Component
 public class InMemoryUserStorage implements UserStorage {
@@ -39,5 +40,20 @@ public class InMemoryUserStorage implements UserStorage {
     @Override
     public boolean existsById(Integer id) {
         return users.containsKey(id);
+    }
+
+    @Override
+    public Collection<User> findCommonFriends(Integer userId, Integer otherId) {
+        User user = users.get(userId);
+        User other = users.get(otherId);
+
+        if (user == null || other == null) {
+            return Collections.emptyList();
+        }
+
+        return user.getFriends().stream()
+                .filter(other.getFriends()::contains)
+                .map(friendId -> users.get(friendId))
+                .collect(Collectors.toList());
     }
 }
