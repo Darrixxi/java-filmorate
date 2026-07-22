@@ -9,4 +9,6 @@ public interface MpaStorage {
     Collection<Mpa> findAll();
 
     Optional<Mpa> findById(Integer id);
+
+    Collection<Mpa> findByIds(Collection<Integer> ids);
 }

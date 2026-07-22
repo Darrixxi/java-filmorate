@@ -9,6 +9,7 @@ import ru.yandex.practicum.filmorate.model.Mpa;
 import ru.yandex.practicum.filmorate.storage.MpaStorage;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Optional;
 
 @Repository
@@ -19,7 +20,7 @@ public class MpaRepository implements MpaStorage {
 
     private static final String FIND_ALL_QUERY = "SELECT * FROM mpa ORDER BY mpa_id";
     private static final String FIND_BY_ID_QUERY = "SELECT * FROM mpa WHERE mpa_id = ?";
-
+    private static final String FIND_BY_IDS_QUERY = "SELECT * FROM mpa WHERE mpa_id IN (?)";
 
     @Override
     public Collection<Mpa> findAll() {
@@ -33,5 +34,15 @@ public class MpaRepository implements MpaStorage {
         } catch (EmptyResultDataAccessException e) {
             return Optional.empty();
         }
+    }
+
+    @Override
+    public Collection<Mpa> findByIds(Collection<Integer> ids) {
+        if (ids == null || ids.isEmpty()) return Collections.emptyList();
+
+        String inSql = String.join(",", Collections.nCopies(ids.size(), "?"));
+        String query = FIND_BY_IDS_QUERY.replace("(?)", "(" + inSql + ")");
+
+        return jdbc.query(query, mpaRowMapper, ids.toArray());
     }
 }

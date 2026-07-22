@@ -61,7 +61,7 @@ public class FilmRepository implements FilmStorage {
     private static final String GET_GENRES_BY_FILM_IDS_QUERY =
             "SELECT fg.film_id, g.genre_id, g.name FROM genres g " +
                     "JOIN film_genres fg ON g.genre_id = fg.genre_id " +
-                    "WHERE fg.film_id IN (:filmIds)";
+                    "WHERE fg.film_id IN (?)";
 
     private static final String GET_LIKES_BY_FILM_IDS_QUERY =
             "SELECT film_id, user_id FROM likes WHERE film_id IN (?)";
@@ -100,7 +100,7 @@ public class FilmRepository implements FilmStorage {
         }
 
         return findById(filmId).orElseThrow(() ->
-                new RuntimeException("Не удалось найти только что созданный фильм с id=" + filmId));
+                new NotFoundException("Не удалось найти только что созданный фильм с id=" + filmId));
     }
 
     @Override
@@ -120,7 +120,7 @@ public class FilmRepository implements FilmStorage {
         }
 
         return findById(film.getId()).orElseThrow(() ->
-                new RuntimeException("Не удалось найти только что обновлённый фильм с id=" + film.getId()));
+                new NotFoundException("Не удалось найти только что обновлённый фильм с id=" + film.getId()));
     }
 
     @Override
@@ -172,25 +172,22 @@ public class FilmRepository implements FilmStorage {
 
         List<Integer> filmIds = films.stream()
                 .map(Film::getId)
-                .filter(Objects::nonNull)
                 .collect(Collectors.toList());
 
-        if (filmIds.isEmpty()) return;
+        String inSql = String.join(",", Collections.nCopies(filmIds.size(), "?"));
+        String query = GET_GENRES_BY_FILM_IDS_QUERY.replace("(?)", "(" + inSql + ")");
 
-        MapSqlParameterSource parameters = new MapSqlParameterSource();
-        parameters.addValue("filmIds", filmIds);
-
-        NamedParameterJdbcTemplate namedJdbc = new NamedParameterJdbcTemplate(jdbc);
-
+        // один запрос к БД → заполняем Map в памяти
         Map<Integer, Set<Genre>> genresByFilmId = new HashMap<>();
-        namedJdbc.query(GET_GENRES_BY_FILM_IDS_QUERY, parameters, rs -> {
+        jdbc.query(query, rs -> {
             Integer filmId = rs.getInt("film_id");
             Genre genre = new Genre();
             genre.setId(rs.getInt("genre_id"));
             genre.setName(rs.getString("name"));
             genresByFilmId.computeIfAbsent(filmId, k -> new HashSet<>()).add(genre);
-        });
+        }, filmIds.toArray());
 
+        // работаем только с памятью (БД не трогаем)
         for (Film film : films) {
             film.setGenres(genresByFilmId.getOrDefault(film.getId(), new HashSet<>()));
         }
@@ -199,11 +196,14 @@ public class FilmRepository implements FilmStorage {
     private void populateLikesForFilms(Collection<Film> films) {
         if (films == null || films.isEmpty()) return;
 
-        List<Integer> filmIds = films.stream().map(Film::getId).collect(Collectors.toList());
+        List<Integer> filmIds = films.stream()
+                .map(Film::getId)
+                .collect(Collectors.toList());
 
         String inSql = String.join(",", Collections.nCopies(filmIds.size(), "?"));
         String query = GET_LIKES_BY_FILM_IDS_QUERY.replace("(?)", "(" + inSql + ")");
 
+        // один запрос к БД
         Map<Integer, Set<Integer>> likesByFilmId = new HashMap<>();
         jdbc.query(query, rs -> {
             Integer filmId = rs.getInt("film_id");
@@ -211,6 +211,7 @@ public class FilmRepository implements FilmStorage {
             likesByFilmId.computeIfAbsent(filmId, k -> new HashSet<>()).add(userId);
         }, filmIds.toArray());
 
+        // работаем только с памятью
         for (Film film : films) {
             film.setLikes(likesByFilmId.getOrDefault(film.getId(), new HashSet<>()));
         }

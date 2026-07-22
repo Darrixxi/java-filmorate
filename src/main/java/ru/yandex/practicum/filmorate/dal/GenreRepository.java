@@ -9,6 +9,7 @@ import ru.yandex.practicum.filmorate.model.Genre;
 import ru.yandex.practicum.filmorate.storage.GenreStorage;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Optional;
 
 @Repository
@@ -19,6 +20,7 @@ public class GenreRepository implements GenreStorage {
 
     private static final String FIND_BY_ID_QUERY = "SELECT * FROM genres WHERE genre_id = ?";
     private static final String FIND_ALL_QUERY = "SELECT * FROM genres ORDER BY genre_id";
+    private static final String FIND_BY_IDS_QUERY = "SELECT * FROM genres WHERE genre_id IN (?)";
 
     @Override
     public Collection<Genre> findAll() {
@@ -32,5 +34,15 @@ public class GenreRepository implements GenreStorage {
         } catch (EmptyResultDataAccessException e) {
             return Optional.empty();
         }
+    }
+
+    @Override
+    public Collection<Genre> findByIds(Collection<Integer> ids) {
+        if (ids == null || ids.isEmpty()) return Collections.emptyList();
+
+        String inSql = String.join(",", Collections.nCopies(ids.size(), "?"));
+        String query = FIND_BY_IDS_QUERY.replace("(?)", "(" + inSql + ")");
+
+        return jdbc.query(query, genreRowMapper, ids.toArray());
     }
 }
